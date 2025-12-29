@@ -1,4 +1,13 @@
 import React from 'react';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
+
+// --- Icons ---
+const Sparkles = () => (
+  <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+  </Svg>
+);
 
 // --- Data ---
 const affirmationsList = [
@@ -19,50 +28,148 @@ const affirmationsList = [
   { id: 15, text: "I release all negative thoughts and embrace positivity." }
 ];
 
-// --- Icons ---
-const Sparkles = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
-    <path d="M5 3v4"/><path d="M9 5H5"/><path d="M19 17v4"/><path d="M21 19h-4"/>
-  </svg>
-);
-
 export default function AffirmationsPage() {
-  // NOTICE: No Sidebar, no Layout wrapper here. Just the page content.
   return (
-    <div className="max-w-6xl mx-auto p-8 md:p-12">
-      
-      {/* Header */}
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-900">Affirmations</h2>
-        <p className="text-gray-500 mt-1">Daily positive affirmations</p>
-      </div>
+    <ScrollView style={styles.container}>
+      <View style={styles.content}>
+        
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>Affirmations</Text>
+          <Text style={styles.subtitle}>Daily positive affirmations</Text>
+        </View>
 
-      {/* Hero Banner */}
-      <div className="bg-gradient-to-r from-blue-50 to-white border border-blue-100 rounded-2xl p-6 mb-10 flex items-center gap-5">
-        <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center shadow-md shadow-blue-200 flex-shrink-0">
-          <Sparkles className="text-white" />
-        </div>
-        <div>
-          <h3 className="font-semibold text-gray-900 text-lg">Daily Affirmations</h3>
-          <p className="text-gray-500 text-sm mt-1">Read these positive affirmations to start your day with intention and positivity</p>
-        </div>
-      </div>
+        {/* Hero Banner */}
+        <View style={styles.banner}>
+          <View style={styles.bannerIcon}>
+            <Sparkles />
+          </View>
+          <View style={styles.bannerText}>
+            <Text style={styles.bannerTitle}>Daily Affirmations</Text>
+            <Text style={styles.bannerSubtitle}>Read these positive affirmations to start your day with intention and positivity</Text>
+          </View>
+        </View>
 
-      {/* Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {affirmationsList.map((item) => (
-          <div key={item.id} className="bg-white p-6 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border-l-4 border-l-blue-500 border-y border-r border-gray-100 flex items-start gap-4 hover:shadow-md transition-shadow h-full">
-            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold">
-              {item.id}
-            </div>
-            <p className="text-gray-600 leading-relaxed pt-1">
-              {item.text}
-            </p>
-          </div>
-        ))}
-      </div>
+        {/* Cards */}
+        <View style={styles.grid}>
+          {affirmationsList.map((item) => (
+            <View key={item.id} style={styles.card}>
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{item.id}</Text>
+              </View>
+              <Text style={styles.cardText}>{item.text}</Text>
+            </View>
+          ))}
+        </View>
 
-    </div>
+      </View>
+    </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  content: {
+    padding: 20,
+    maxWidth: 1200,
+    alignSelf: 'center',
+    width: '100%',
+  },
+  header: {
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 4,
+  },
+  banner: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  bannerIcon: {
+    width: 48,
+    height: 48,
+    backgroundColor: '#3B82F6',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  bannerText: {
+    flex: 1,
+  },
+  bannerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  bannerSubtitle: {
+    fontSize: 13,
+    color: '#6B7280',
+    lineHeight: 18,
+  },
+  grid: {
+    gap: 16,
+  },
+  card: {
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#3B82F6',
+    borderTopWidth: 1,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderTopColor: '#F3F4F6',
+    borderRightColor: '#F3F4F6',
+    borderBottomColor: '#F3F4F6',
+    flexDirection: 'row',
+    gap: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  badge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#DBEAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#3B82F6',
+  },
+  cardText: {
+    flex: 1,
+    fontSize: 15,
+    color: '#4B5563',
+    lineHeight: 22,
+    paddingTop: 4,
+  },
+});

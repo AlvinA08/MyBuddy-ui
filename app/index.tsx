@@ -1,166 +1,307 @@
-import { login } from "@/libs/api/auth";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Link, useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { Alert } from "react-native";
+import { Link, useRouter } from "expo-router";
+import React, { useState } from "react";
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import Svg, { Path, Rect } from 'react-native-svg';
+import { supabase } from "@/libs/supabase";
+
 
 // --- Icons ---
 const Icons = {
-  Activity: ({ className }: { className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-    </svg>
+  Activity: () => (
+    <Svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+    </Svg>
   ),
-  Mail: ({ size = 20 }: { size?: number }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400">
-      <rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
-    </svg>
+  Mail: () => (
+    <Svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <Rect width="20" height="16" x="2" y="4" rx="2"/>
+      <Path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+    </Svg>
   ),
-  Lock: ({ size = 20 }: { size?: number }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400">
-      <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-    </svg>
+  Lock: () => (
+    <Svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <Rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+      <Path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+    </Svg>
   ),
-  Check: ({ size = 14 }: { size?: number }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-white">
-      <polyline points="20 6 9 17 4 12"/>
-    </svg>
-  )
 };
 
 export default function LoginPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
+const handleLogin = async () => {
+  if (!email || !password) {
+    Alert.alert("Error", "Please fill in all fields");
+    return;
+  }
 
+  setLoading(true);
 
-  const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "Email and password are required.");
-      return;
+  try {
+    // Query database for user with matching email + password (plain text match)
+    const { data, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", email)
+      .eq("password", password)
+      .single(); // ensures only 1 row is returned
+
+    if (error) throw error;
+
+    if (!data) {
+      throw new Error("Invalid email or password");
     }
 
-    try {
-      setLoading(true);
+    // If login is successful
+    Alert.alert("Success", `Welcome ${data.fullname}!`);
 
-      const response = await login({
-        email,
-        password,
-      });
+    // Navigate to Home screen
+    router.replace("/home");
 
-      // Save user session securely
-      await AsyncStorage.setItem("token", response.token);
-      if (rememberMe) await AsyncStorage.setItem("user", JSON.stringify(response.user));
+  } catch (err: any) {
+    Alert.alert("Login Failed", err.message || "Invalid credentials");
+  } finally {
+    setLoading(false);
+  }
+};
 
-      router.replace("/home");
-    } catch (err) {
-      Alert.alert("Login Failed", "Invalid email or password.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[80vh] p-6">
-      
-      {/* Login Card */}
-      <div className="bg-white w-full max-w-[450px] rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 p-10 md:p-12 text-center">
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      <View style={styles.card}>
         
-        {/* Logo Section */}
-        <div className="flex justify-center mb-6">
-          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200">
-            <Icons.Activity className="text-white" />
-          </div>
-        </div>
+        {/* Logo */}
+        <View style={styles.logoContainer}>
+          <View style={styles.logo}>
+            <Icons.Activity />
+          </View>
+        </View>
 
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome Back</h1>
-        <p className="text-gray-500 text-sm mb-8">Sign in to your medical account to continue</p>
+        <Text style={styles.title}>Welcome back</Text>
+        <Text style={styles.subtitle}>Log in to continue with MyBuddy</Text>
 
-        {/* Form */}
-        <div className="space-y-5 text-left">
-          
-          {/* Email Input */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
-            <div className="relative">
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                <Icons.Mail />
-              </div>
-              <input 
-                type="email" 
+        {/* Email */}
+        <View style={styles.form}>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Email Address</Text>
+            <View style={styles.inputContainer}>
+              <Icons.Mail />
+              <TextInput 
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 pl-12 pr-4 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all"
+                onChangeText={setEmail}
                 placeholder="name@example.com"
+                placeholderTextColor="#9CA3AF"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                style={styles.input}
               />
-            </div>
-          </div>
+            </View>
+          </View>
 
-          {/* Password Input */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
-            <div className="relative">
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                <Icons.Lock />
-              </div>
-              <input 
-                type="password" 
+          {/* Password */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Password</Text>
+            <View style={styles.inputContainer}>
+              <Icons.Lock />
+              <TextInput 
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 pl-12 pr-4 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all"
-                placeholder="••••••••"
+                onChangeText={setPassword}
+                placeholder="Enter password"
+                placeholderTextColor="#9CA3AF"
+                secureTextEntry
+                style={styles.input}
               />
-            </div>
-          </div>
+            </View>
+          </View>
 
-          {/* Extras */}
-          <div className="flex items-center justify-between pt-1">
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <div 
-                onClick={() => setRememberMe(!rememberMe)}
-                className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
-                  rememberMe ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'
-                }`}
-              >
-                {rememberMe && <Icons.Check />}
-              </div>
-              <span className="text-sm text-gray-600 font-medium">Remember me</span>
-            </label>
-            
-            <a href="#" className="text-sm font-medium text-blue-600 hover:text-blue-700">
-              Forgot password?
-            </a>
-          </div>
-
-          {/* Sign In Button */}
-          <button 
-            onClick={handleLogin}
-            className="w-full bg-gradient-to-r from-[#0066FF] to-[#00B2FF] hover:opacity-90 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-200 transition-all active:scale-[0.98] mt-2"
+          {/* Button */}
+          <TouchableOpacity 
+            onPress={handleLogin}
+            disabled={loading}
+            style={[styles.button, loading && styles.buttonDisabled]}
           >
-            Sign In
-          </button>
+            {loading ? <ActivityIndicator color="white" /> : <Text style={styles.buttonText}>Login</Text>}
+          </TouchableOpacity>
 
-          {/* Footer Divider */}
-          <div className="relative flex py-2 items-center">
-            <div className="flex-grow border-t border-gray-100"></div>
-            <span className="flex-shrink-0 mx-4 text-gray-300 text-xs uppercase tracking-wider">OR</span>
-            <div className="flex-grow border-t border-gray-100"></div>
-          </div>
-
-          <div className="text-center">
-            <p className="text-sm text-gray-500">
-              Don't have an account?{' '}
-              <Link href="/signup" className="text-blue-600 font-semibold hover:underline">
-                Sign up
-              </Link>
-            </p>
-          </div>
-
-        </div>
-      </div>
-    </div>
+          {/* Footer */}
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Don't have an account? </Text>
+            <Link href="/signup" style={styles.link}>Sign Up</Link>
+          </View>
+        </View>
+      </View>
+    </ScrollView>
   );
 }
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  contentContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    padding: 20,
+  },
+  card: {
+    backgroundColor: 'white',
+    borderRadius: 24,
+    padding: 40,
+    maxWidth: 450,
+    width: '100%',
+    alignSelf: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.04,
+    shadowRadius: 30,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  logo: {
+    width: 64,
+    height: 64,
+    backgroundColor: '#3B82F6',
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#111827',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+  form: {
+    gap: 20,
+  },
+  inputGroup: {
+    gap: 8,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+  },
+  iconContainer: {
+    marginRight: 12,
+  },
+  input: {
+    flex: 1,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: '#374151',
+  },
+  extras: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 4,
+  },
+  rememberMe: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    backgroundColor: 'white',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6',
+  },
+  rememberText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  forgotText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#3B82F6',
+  },
+  button: {
+    backgroundColor: '#3B82F6',
+    borderRadius: 12,
+    padding: 14,
+    alignItems: 'center',
+    marginTop: 8,
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#F3F4F6',
+  },
+  dividerText: {
+    marginHorizontal: 16,
+    fontSize: 12,
+    color: '#D1D5DB',
+    fontWeight: '600',
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  footerText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  link: {
+    fontSize: 14,
+    color: '#3B82F6',
+    fontWeight: '600',
+  },
+});

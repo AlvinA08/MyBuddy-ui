@@ -1,27 +1,36 @@
-import { Slot } from 'expo-router';
-import React, { useEffect } from 'react';
-import Sidebar from '../components/Sidebar'; // Adjust path if needed
-//import '../global.css'; // Ensure you have your CSS or Tailwind imported
+import { Slot, usePathname } from 'expo-router';
+import React from 'react';
+import { StyleSheet, View } from 'react-native';
+import Sidebar from '../components/Sidebar';
 
 export default function Layout() {
-  // Inject Tailwind CSS (just in case it's missing)
-  useEffect(() => {
-    if (typeof document !== 'undefined') {
-      const script = document.createElement('script');
-      script.src = "https://cdn.tailwindcss.com";
-      document.head.appendChild(script);
-    }
-  }, []);
+  const pathname = usePathname();
+
+  // List of routes where sidebar should NOT appear
+  const noSidebarRoutes = ['/', '/signup'];
+
+  // Check if current route matches any in array
+  const hideSidebar = noSidebarRoutes.includes(pathname);
 
   return (
-    <div className="flex h-screen bg-[#F8FAFC] font-sans overflow-hidden">
-      {/* The Sidebar stays constant */}
-      <Sidebar />
-      
-      {/* The 'Slot' is where your page content (Journal, Affirmations) will appear */}
-      <main className="flex-1 overflow-y-auto">
+    <View style={styles.container}>
+      {/* Render Sidebar only when NOT on login or signup */}
+      {!hideSidebar && <Sidebar />}
+
+      <View style={styles.main}>
         <Slot />
-      </main>
-    </div>
+      </View>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: '#F8FAFC',
+  },
+  main: {
+    flex: 1,
+  },
+});

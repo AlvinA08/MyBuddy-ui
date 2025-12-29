@@ -1,29 +1,34 @@
+//Sign up
 import { Link, useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert } from "react-native";
-import { signup } from "../libs/api/auth"; // <-- make sure the path is correct
-
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import { supabase } from '../libs/supabase';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 // --- Icons ---
 const Icons = {
-  Activity: ({ className }: { className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-    </svg>
+  Activity: () => (
+    <Svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+    </Svg>
   ),
-  User: ({ size = 20 }: { size?: number }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400">
-      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-    </svg>
+  User: () => (
+    <Svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+      <Circle cx="12" cy="7" r="4"/>
+    </Svg>
   ),
-  Mail: ({ size = 20 }: { size?: number }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400">
-      <rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
-    </svg>
+  Mail: () => (
+    <Svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <Rect width="20" height="16" x="2" y="4" rx="2"/>
+      <Path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+    </Svg>
   ),
-  Lock: ({ size = 20 }: { size?: number }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400">
-      <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-    </svg>
+  Lock: () => (
+    <Svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <Rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+      <Path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+    </Svg>
   ),
 };
 
@@ -34,118 +39,161 @@ export default function SignUpPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSignUp = async () => {
-    if (!email || !password || !fullName) {
-      Alert.alert("Error", "Please fill in all fields");
-      return;
-    }
+  // --- Updated Signup Function ---
+const handleSignUp = async () => {
+  if (!email || !password || !fullName) {
+    Alert.alert("Error", "Please fill in all fields");
+    return;
+  }
 
-    setLoading(true);
+  setLoading(true);
 
-    try {
-      const response = await signup({
-        name: fullName,
-        email,
-        password
-      });
+  try {
+    // Insert user directly into Supabase table
+    const { data, error } = await supabase
+      .from("users")
+      .insert([
+        {
+          fullname: fullName,
+          email: email,
+          password: password, // ⚠️ stored raw!
+        },
+      ])
+      .select();
 
-      Alert.alert("Success", "Account created successfully!");
-      router.replace("/"); // redirect to login
-    } catch (err: any) {
-      Alert.alert("Signup Failed", err?.message || "Something went wrong");
-    }
+    if (error) throw error;
 
+    console.log("Inserted user:", data);
+
+    // ---- Save user ID in AsyncStorage ----
+    const userId = data[0].id; 
+    await AsyncStorage.setItem("USER_ID", userId.toString());
+    console.log(userId)
+
+    Alert.alert("Success", "Account created successfully!");
+    router.replace("/home");
+
+  } catch (err: any) {
+    Alert.alert("Error", err.message || "Something went wrong.");
+  } finally {
     setLoading(false);
-  };
-
+  }
+};
   return (
-    <div className="flex flex-col items-center justify-center min-h-[90vh] p-6 bg-white md:bg-transparent">
-      
-      <div className="bg-white w-full max-w-[450px] rounded-3xl md:shadow-[0_8px_30px_rgb(0,0,0,0.04)] md:border border-gray-100 p-10 md:p-12 text-center">
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      <View style={styles.card}>
         
         {/* Logo */}
-        <div className="flex justify-center mb-6">
-          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200">
-            <Icons.Activity className="text-white" />
-          </div>
-        </div>
+        <View style={styles.logoContainer}>
+          <View style={styles.logo}>
+            <Icons.Activity />
+          </View>
+        </View>
 
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Create Account</h1>
-        <p className="text-gray-500 text-sm mb-8">Join MyBuddy to track your wellness</p>
+        <Text style={styles.title}>Create Account</Text>
+        <Text style={styles.subtitle}>Join MyBuddy to track your wellness</Text>
 
         {/* Form */}
-        <div className="space-y-5 text-left">
+        <View style={styles.form}>
           
           {/* Full Name */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Full Name</label>
-            <div className="relative">
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Full Name</Text>
+            <View style={styles.inputContainer}>
+              <View style={styles.iconContainer}>
                 <Icons.User />
-              </div>
-              <input 
-                type="text" 
+              </View>
+              <TextInput
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 pl-12 pr-4 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all"
+                onChangeText={setFullName}
                 placeholder="John Doe"
+                placeholderTextColor="#9CA3AF"
+                style={styles.input}
               />
-            </div>
-          </div>
+            </View>
+          </View>
 
           {/* Email */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
-            <div className="relative">
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Email</Text>
+            <View style={styles.inputContainer}>
+              <View style={styles.iconContainer}>
                 <Icons.Mail />
-              </div>
-              <input 
-                type="email" 
+              </View>
+              <TextInput
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 pl-12 pr-4 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all"
+                onChangeText={setEmail}
                 placeholder="name@example.com"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                style={styles.input}
               />
-            </div>
-          </div>
+            </View>
+          </View>
 
           {/* Password */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
-            <div className="relative">
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Password</Text>
+            <View style={styles.inputContainer}>
+              <View style={styles.iconContainer}>
                 <Icons.Lock />
-              </div>
-              <input 
-                type="password" 
+              </View>
+              <TextInput
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 pl-12 pr-4 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all"
+                onChangeText={setPassword}
                 placeholder="Create a password"
+                placeholderTextColor="#9CA3AF"
+                secureTextEntry
+                style={styles.input}
               />
-            </div>
-          </div>
+            </View>
+          </View>
 
-          <button 
-            onClick={handleSignUp}
+          {/* Create Account Button */}
+          <TouchableOpacity 
+            onPress={handleSignUp}
             disabled={loading}
-            className="w-full bg-gradient-to-r from-[#0066FF] to-[#00B2FF] hover:opacity-90 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-200 transition-all active:scale-[0.98] mt-4"
+            style={[styles.button, loading && styles.buttonDisabled]}
           >
-            {loading ? "Creating Account..." : "Create Account"}
-          </button>
+            {loading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={styles.buttonText}>Create Account</Text>
+            )}
+          </TouchableOpacity>
 
-          <div className="text-center mt-4">
-            <p className="text-sm text-gray-500">
-              Already have an account?{" "}
-              <Link href="/" className="text-blue-600 font-semibold hover:underline">
-                Sign In
-              </Link>
-            </p>
-          </div>
+          {/* Sign In Link */}
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Already have an account? </Text>
+            <Link href="/" style={styles.link}>Sign In</Link>
+          </View>
 
-        </div>
-      </div>
-    </div>
+        </View>
+      </View>
+    </ScrollView>
   );
 }
+
+// --- Styles remain unchanged ---
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  contentContainer: { flexGrow: 1, justifyContent: 'center', padding: 20 },
+  card: { backgroundColor: 'white', borderRadius: 24, padding: 40, maxWidth: 450, width: '100%', alignSelf: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.04, shadowRadius: 30, elevation: 5, borderWidth: 1, borderColor: '#F3F4F6' },
+  logoContainer: { alignItems: 'center', marginBottom: 24 },
+  logo: { width: 64, height: 64, backgroundColor: '#3B82F6', borderRadius: 16, alignItems: 'center', justifyContent: 'center', shadowColor: '#3B82F6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
+  title: { fontSize: 24, fontWeight: 'bold', color: '#111827', textAlign: 'center', marginBottom: 8 },
+  subtitle: { fontSize: 14, color: '#6B7280', textAlign: 'center', marginBottom: 32 },
+  form: { gap: 20 },
+  inputGroup: { gap: 8 },
+  label: { fontSize: 14, fontWeight: '600', color: '#374151' },
+  inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#F3F4F6', borderRadius: 12, paddingHorizontal: 16 },
+  iconContainer: { marginRight: 12 },
+  input: { flex: 1, paddingVertical: 12, fontSize: 14, color: '#374151' },
+  button: { backgroundColor: '#3B82F6', borderRadius: 12, padding: 14, alignItems: 'center', marginTop: 8, shadowColor: '#3B82F6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 3 },
+  buttonDisabled: { opacity: 0.6 },
+  buttonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
+  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 4 },
+  footerText: { fontSize: 14, color: '#6B7280' },
+  link: { fontSize: 14, color: '#3B82F6', fontWeight: '600' },
+});

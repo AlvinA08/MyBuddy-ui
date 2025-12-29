@@ -1,167 +1,303 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '@/libs/supabase';
+import Svg, { Path, Circle, Line, Polyline } from 'react-native-svg';
 
 // --- Icons ---
 const Icons = {
-  BarChart: ({ className }: { className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
-    </svg>
+  Plus: () => (
+    <Svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <Line x1="12" y1="5" x2="12" y2="19"/>
+      <Line x1="5" y1="12" x2="19" y2="12"/>
+    </Svg>
   ),
-  TrendingUp: ({ className }: { className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
-    </svg>
+  Trash: () => (
+    <Svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <Polyline points="3 6 5 6 21 6"/>
+      <Path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+    </Svg>
   ),
-  Plus: ({ className }: { className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-    </svg>
-  ),
-  Trash: ({ className }: { className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-    </svg>
-  ),
-  Check: ({ className }: { className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <polyline points="20 6 9 17 4 12"/>
-    </svg>
+  Check: () => (
+    <Svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+      <Polyline points="20 6 9 17 4 12"/>
+    </Svg>
   )
 };
 
 interface Task {
-  id: number;
-  text: string;
+  id: string;
+  title: string;
   completed: boolean;
 }
+
+const STORAGE_KEY = "@tasks";
 
 export default function TodoPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [newTask, setNewTask] = useState("");
 
-  const handleAddTask = () => {
-    if (!newTask.trim()) return;
-    const task: Task = {
-      id: Date.now(),
-      text: newTask,
-      completed: false
-    };
-    setTasks([task, ...tasks]);
-    setNewTask("");
-  };
+// Load tasks for the current user
+const loadTasks = async () => {
+  try {
+    const userId = await AsyncStorage.getItem("USER_ID");
+    if (!userId) return;
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') handleAddTask();
-  };
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('user_id', userId)
+      .order('id', { ascending: false });
 
-  const toggleTask = (id: number) => {
+    if (error) throw error;
+    setTasks(data || []);
+  } catch (err) {
+    console.log('Error loading tasks:', err);
+    Alert.alert('Error', 'Failed to load tasks');
+  }
+};
+
+// Add a new task for the current user
+const handleAddTask = async () => {
+  if (!newTask.trim()) return;
+
+  try {
+    const userId = await AsyncStorage.getItem("USER_ID");
+    if (!userId) return;
+
+    const { data, error } = await supabase
+      .from('tasks')
+      .insert([{ title: newTask, completed: false, user_id: userId }])
+      .select();
+
+    if (error) throw error;
+    setTasks([data[0], ...tasks]);
+    setNewTask('');
+  } catch (err) {
+    console.log('Error adding task:', err);
+    Alert.alert('Error', 'Failed to add task');
+  }
+};
+
+// Toggle task completion for the current user
+const toggleTask = async (id: string) => {
+  try {
+    const task = tasks.find(t => t.id === id);
+    const userId = await AsyncStorage.getItem("USER_ID");
+    if (!task) return;
+
+    const { data, error } = await supabase
+      .from('tasks')
+      .update({ completed: !task.completed })
+      .eq('id', id)
+      .eq('user_id', userId) // ensures only the owner can update
+      .select();
+
+    if (error) throw error;
     setTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
-  };
+  } catch (err) {
+    console.log('Error toggling task:', err);
+    Alert.alert('Error', 'Failed to update task');
+  }
+};
 
-  const deleteTask = (id: number) => {
+// Delete a task for the current user
+const deleteTask = async (id: string) => {
+  const userId = await AsyncStorage.getItem("USER_ID");
+  try {
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+
+    const { error } = await supabase
+      .from('tasks')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId); // ensures only the owner can delete
+
+    if (error) throw error;
     setTasks(tasks.filter(t => t.id !== id));
-  };
+  } catch (err) {
+    console.log('Error deleting task:', err);
+    Alert.alert('Error', 'Failed to delete task');
+  }
+};
 
   return (
-    <div className="max-w-5xl mx-auto p-8 md:p-12">
-      
-      {/* Header */}
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-900">Tasks</h2>
-        <p className="text-gray-500 mt-1">Manage your daily tasks and track progress</p>
-      </div>
-
-      {/* Weekly Report Banner */}
-      <div className="bg-[#F3E8FF] border border-purple-100 rounded-2xl p-6 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center shadow-md shadow-purple-200 flex-shrink-0">
-            <Icons.BarChart className="text-white" />
-          </div>
-          <div>
-            <h3 className="font-bold text-gray-900">Weekly Report Available</h3>
-            <p className="text-gray-600 text-sm">See how you've progressed this week</p>
-          </div>
-        </div>
-        <button className="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-6 py-3 rounded-xl transition-colors shadow-sm text-sm whitespace-nowrap">
-          View Weekly Report
-        </button>
-      </div>
-
-      {/* Main Tasks Card */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+    <ScrollView style={styles.container}>
+      <View style={styles.content}>
         
-        {/* Card Header */}
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-1">
-            <Icons.TrendingUp className="text-blue-600" />
-            <h3 className="font-bold text-gray-900 text-lg">Today's Tasks</h3>
-          </div>
-          <p className="text-gray-500 text-sm">Manage your daily health and wellness tasks</p>
-        </div>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>Tasks</Text>
+          <Text style={styles.subtitle}>Manage your daily tasks</Text>
+        </View>
 
-        {/* Input Area */}
-        <div className="flex items-center gap-3 mb-8">
-          <input 
-            type="text" 
+        {/* Input */}
+        <View style={styles.inputContainer}>
+          <TextInput
             value={newTask}
-            onChange={(e) => setNewTask(e.target.value)}
-            onKeyDown={handleKeyDown}
+            onChangeText={setNewTask}
             placeholder="Add a new task..."
-            className="flex-1 bg-gray-50 border border-gray-100 rounded-lg px-4 py-3 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all"
+            placeholderTextColor="#9CA3AF"
+            returnKeyType="done"
+            onSubmitEditing={handleAddTask}
+            style={styles.input}
           />
-          <button 
-            onClick={handleAddTask}
-            className="bg-[#0EA5E9] hover:bg-sky-600 text-white w-12 h-12 rounded-lg flex items-center justify-center shadow-sm transition-all active:scale-95"
-          >
-            <Icons.Plus className="text-white" />
-          </button>
-        </div>
+          <TouchableOpacity onPress={handleAddTask} style={styles.addButton}>
+            <Icons.Plus />
+          </TouchableOpacity>
+        </View>
 
-        {/* Task List or Empty State */}
+        {/* Tasks List */}
         {tasks.length === 0 ? (
-          <div className="text-center py-12 bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
-            <p className="text-gray-400 text-sm">No tasks yet. Add your first task above!</p>
-          </div>
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>No tasks yet. Add your first task above!</Text>
+          </View>
         ) : (
-          <div className="space-y-3">
-            {tasks.map((task) => (
-              <div 
-                key={task.id} 
-                className={`group flex items-center justify-between p-4 rounded-xl border transition-all ${
-                  task.completed 
-                    ? 'bg-gray-50 border-gray-100' 
-                    : 'bg-white border-gray-100 hover:border-blue-100 hover:shadow-sm'
-                }`}
-              >
-                <div className="flex items-center gap-4 flex-1">
-                  <button 
-                    onClick={() => toggleTask(task.id)}
-                    className={`w-6 h-6 rounded-md border flex items-center justify-center transition-colors ${
-                      task.completed 
-                        ? 'bg-green-500 border-green-500' 
-                        : 'bg-white border-gray-300 hover:border-blue-400'
-                    }`}
+          <View style={styles.tasksList}>
+            {tasks.map(task => (
+              <View key={task.id} style={[styles.taskItem, task.completed && styles.taskItemCompleted]}>
+                <View style={styles.taskContent}>
+                  <TouchableOpacity 
+                    onPress={() => toggleTask(task.id)}
+                    style={[styles.checkbox, task.completed && styles.checkboxChecked]}
                   >
-                    {task.completed && <Icons.Check className="text-white" />}
-                  </button>
-                  <span className={`text-gray-700 ${task.completed ? 'line-through text-gray-400' : ''}`}>
-                    {task.text}
-                  </span>
-                </div>
-                
-                <button 
-                  onClick={() => deleteTask(task.id)}
-                  className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-2"
-                  title="Delete task"
-                >
+                    {task.completed && <Icons.Check />}
+                  </TouchableOpacity>
+                  <Text style={[styles.taskText, task.completed && styles.taskTextCompleted]}>
+                    {task.title}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => deleteTask(task.id)} style={styles.deleteButton}>
                   <Icons.Trash />
-                </button>
-              </div>
+                </TouchableOpacity>
+              </View>
             ))}
-          </div>
+          </View>
         )}
 
-      </div>
-    </div>
+      </View>
+    </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  content: {
+    padding: 20,
+    maxWidth: 900,
+    alignSelf: 'center',
+    width: '100%',
+  },
+  header: {
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 4,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+  },
+  input: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: '#374151',
+  },
+  addButton: {
+    width: 48,
+    height: 48,
+    backgroundColor: '#0EA5E9',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0EA5E9',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  emptyState: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    padding: 48,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#9CA3AF',
+  },
+  tasksList: {
+    gap: 12,
+  },
+  taskItem: {
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  taskItemCompleted: {
+    backgroundColor: '#F9FAFB',
+  },
+  taskContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    flex: 1,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    backgroundColor: 'white',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: '#10B981',
+    borderColor: '#10B981',
+  },
+  taskText: {
+    fontSize: 15,
+    color: '#374151',
+    flex: 1,
+  },
+  taskTextCompleted: {
+    textDecorationLine: 'line-through',
+    color: '#9CA3AF',
+  },
+  deleteButton: {
+    padding: 8,
+  },
+});

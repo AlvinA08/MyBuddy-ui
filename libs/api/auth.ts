@@ -1,33 +1,83 @@
-import axios from "axios";
-const API_URL = "http://localhost:3000/api"
+// const API_URL = "http://localhost:3000/api";
 
-interface Signup {
-  name: string;
-  email: string;
-  password: string;
-}
+// export async function signup(data: any) {
+//   try {
+//     const response = await fetch(`${API_URL}/auth/register`, {
+//       method: 'POST',
+//       headers: {
+//         'Content-Type': 'application/json',
+//       },
+//       body: JSON.stringify(data),
+//     });
+    
+//     if (!response.ok) {
+//       throw new Error('Signup failed');
+//     }
+    
+//     return await response.json();
+//   } catch (err: any) {
+//     console.log(err);
+//     throw err;
+//   }
+// }
 
-interface Login {
-  email: string;
-  password: string;
-}
+// export async function login(data: any) {
+//   try {
+//     const response = await fetch(`${API_URL}/auth/login`, {
+//       method: 'POST',
+//       headers: {
+//         'Content-Type': 'application/json',
+//       },
+//       body: JSON.stringify(data),
+//     });
+    
+//     if (!response.ok) {
+//       throw new Error('Login failed');
+//     }
+    
+//     return await response.json();
+//   } catch (err: any) {
+//     console.log(err);
+//     throw err;
+//   }
+// }
 
-export async function signup(data: Signup) {
+import { supabase } from '../supabase';
+
+export async function signup(email: string, password: string) {
   try {
-    const response = await axios.post(`${API_URL}/auth/register`, data);
-    return response.data;
-  } catch (error: any) {
-    console.log(error.response?.data || "Signup failed");
-    throw error.response?.data || new Error("Signup failed");
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    if (error) throw error;
+
+    return data; // contains user info & session
+  } catch (err: unknown) {
+    if (err instanceof Error) throw new Error(err.message);
+    throw new Error('Signup failed');
   }
 }
 
-export async function login(data: Login) {
+
+export async function login(email: string, password: string) {
   try {
-    const response = await axios.post(`${API_URL}/auth/login`, data);
-    return response.data;
-  } catch (error: any) {
-    console.log(error.response?.data || "Login failed");
-    throw error.response?.data || new Error("Login failed");
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    return data; // contains user info & session
+  } catch (err: unknown) {
+    if (err instanceof Error) throw new Error(err.message);
+    throw new Error('Login failed');
   }
 }
+
+
+//     if (error) throw error;
+
+//     return data; // contains user info
+//   } catch (err: unknown) {
+//     if (err instanceof Error) throw new Error(err.message);
+//     throw new Error('Signup failed');
+//   }
+// }
